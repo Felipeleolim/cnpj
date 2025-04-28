@@ -21,7 +21,7 @@
       border-radius: 10px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.1);
       width: 90%;
-      max-width: 500px;
+      max-width: 700px;
     }
     h1 {
       text-align: center;
@@ -63,16 +63,72 @@
       color: red;
       text-align: center;
     }
-    .qsa-list {
-      margin-top: 1rem;
-      padding-left: 1rem;
+    .field-group {
+      margin-bottom: 1rem;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 0.5rem;
     }
-    .qsa-item {
-      margin-bottom: 0.7rem;
+    .field-group:last-child {
+      border-bottom: none;
+    }
+    .field-title {
+      font-weight: bold;
+      color: #007acc;
+      margin-bottom: 5px;
+    }
+    .list-item {
+      margin-left: 1rem;
+      margin-bottom: 0.5rem;
       padding: 0.5rem;
-      border-left: 3px solid #4facfe;
       background: #eaf6fd;
-      border-radius: 4px;
+      border-radius: 5px;
+      border-left: 3px solid #4facfe;
+    }
+    .collapsible {
+      background-color: #e7f3ff;
+      color: #333;
+      cursor: pointer;
+      padding: 10px;
+      width: 100%;
+      border: none;
+      text-align: left;
+      outline: none;
+      font-size: 1rem;
+      margin-top: 10px;
+      border-radius: 5px;
+    }
+    .collapsible:hover {
+      background-color: #d0e9ff;
+    }
+    .content {
+      padding: 0 15px;
+      display: none;
+      overflow: hidden;
+      background-color: #f9f9f9;
+      border-radius: 0 0 5px 5px;
+      margin-bottom: 1rem;
+    }
+    .badge {
+      display: inline-block;
+      padding: 5px 10px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      color: white;
+    }
+    .ativo {
+      background-color: green;
+    }
+    .inativo {
+      background-color: red;
+    }
+    .tab-title {
+      font-size: 1.2rem;
+      color: #333;
+      margin-top: 2rem;
+      text-align: center;
+      border-bottom: 2px solid #4facfe;
+      padding-bottom: 5px;
+      margin-bottom: 1rem;
     }
   </style>
 </head>
@@ -88,7 +144,23 @@
 
 <script>
   function limparCNPJ(cnpj) {
-    return cnpj.replace(/[^\d]+/g,'');
+    return cnpj.replace(/[^\d]+/g, '');
+  }
+
+  function formatarTexto(texto) {
+    if (!texto) return '';
+    return texto
+      .replace(/_/g, ' ')
+      .toLowerCase()
+      .replace(/(?:^|\s)\S/g, a => a.toUpperCase());
+  }
+
+  function criarBadge(status) {
+    if (!status) return '';
+    const s = status.toLowerCase();
+    if (s.includes('ativo')) return `<span class="badge ativo">${status}</span>`;
+    if (s.includes('baixado') || s.includes('inativo')) return `<span class="badge inativo">${status}</span>`;
+    return `<span class="badge" style="background-color: gray;">${status}</span>`;
   }
 
   async function consultarCNPJ() {
@@ -99,8 +171,9 @@
 
     output.style.display = 'none';
     error.textContent = '';
+    output.innerHTML = '';
 
-    if(cnpj.length !== 14) {
+    if (cnpj.length !== 14) {
       error.textContent = "CNPJ inválido. Deve conter 14 números.";
       return;
     }
@@ -112,37 +185,68 @@
       }
       const data = await response.json();
 
-      // Gera a lista de sócios/administradores (aquisições)
-      let qsaHTML = '';
-      if (data.qsa && data.qsa.length > 0) {
-        qsaHTML = `<strong>Sócios/Administradores:</strong>
-        <div class="qsa-list">`;
-        data.qsa.forEach((socio, idx) => {
-          qsaHTML += `
-            <div class="qsa-item">
-              <strong>Nome:</strong> ${socio.nome_socio || 'N/A'}<br>
-              <strong>Qualificação:</strong> ${socio.qualificacao_socio || 'N/A'}
-            </div>
-          `;
-        });
-        qsaHTML += `</div>`;
-      } else {
-        qsaHTML = `<strong>Sócios/Administradores:</strong> Não informado.`;
+      output.style.display = 'block';
+
+      let html = '<h3>Informações da Empresa</h3><div>';
+
+      // Primeiro, todos os campos exceto QSA (Sócios)
+      for (let key in data) {
+        if (key === 'qsa') continue; // pula agora, vamos montar depois
+
+        if (typeof data[key] === 'object' && data[key] !== null && !Array.isArray(data[key])) {
+          html += `<div class="field-group">
+            <div class="field-title">${formatarTexto(key)}</div>`;
+          for (let subKey in data[key]) {
+            html += `<strong>${formatarTexto(subKey)}:</strong> ${data[key][subKey]}<br>`;
+          }
+          html += `</div>`;
+        } else {
+          html += `<div class="field-group">
+            <div class="field-title">${formatarTexto(key)}</div>`;
+
+          if (key === 'descricao_situacao_cadastral') {
+            html += criarBadge(data[key]);
+          } else {
+            html += `${data[key]}`;
+          }
+
+          html += `</div>`;
+        }
       }
 
-      output.style.display = 'block';
-      output.innerHTML = `
-        <strong>Nome Fantasia:</strong> ${data.fantasia || 'N/A'}<br>
-        <strong>Razão Social:</strong> ${data.razao_social || 'N/A'}<br>
-        <strong>Status:</strong> ${data.descricao_situacao_cadastral || 'N/A'}<br>
-        <strong>UF:</strong> ${data.uf || 'N/A'}<br>
-        <strong>Cidade:</strong> ${data.municipio || 'N/A'}<br>
-        <strong>Bairro:</strong> ${data.bairro || 'N/A'}<br>
-        <strong>Logradouro:</strong> ${data.logradouro || 'N/A'}, ${data.numero || 'S/N'}<br>
-        <strong>CEP:</strong> ${data.cep || 'N/A'}
-        <br>
-        ${qsaHTML}
-      `;
+      html += '</div>';
+
+      // Agora monta a aba sócios
+      if (data.qsa && data.qsa.length > 0) {
+        html += `<div class="tab-title">Sócios / Administradores</div>
+          <button type="button" class="collapsible">Ver Sócios</button>
+          <div class="content">`;
+        data.qsa.forEach((socio, idx) => {
+          html += `<div class="list-item">`;
+          for (let campo in socio) {
+            html += `<strong>${formatarTexto(campo)}:</strong> ${socio[campo]}<br>`;
+          }
+          html += `</div>`;
+        });
+        html += `</div>`;
+      }
+
+      output.innerHTML = html;
+
+      // Ativa collapsible
+      var coll = document.getElementsByClassName("collapsible");
+      for (let i = 0; i < coll.length; i++) {
+        coll[i].addEventListener("click", function() {
+          this.classList.toggle("active");
+          var content = this.nextElementSibling;
+          if (content.style.display === "block") {
+            content.style.display = "none";
+          } else {
+            content.style.display = "block";
+          }
+        });
+      }
+
     } catch (err) {
       error.textContent = err.message;
     }
