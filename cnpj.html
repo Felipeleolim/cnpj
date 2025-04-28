@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Consulta de CNPJ</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to right, #4facfe, #00f2fe);
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .container {
+      background: #fff;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      width: 90%;
+      max-width: 500px;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 0.8rem;
+      margin-top: 1rem;
+      margin-bottom: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 1rem;
+    }
+    button {
+      width: 100%;
+      padding: 0.8rem;
+      background-color: #4facfe;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #00c6fb;
+    }
+    .result {
+      margin-top: 1.5rem;
+      background: #f0f8ff;
+      padding: 1rem;
+      border-radius: 5px;
+      font-size: 0.95rem;
+      color: #333;
+    }
+    .error {
+      margin-top: 1rem;
+      color: red;
+      text-align: center;
+    }
+    .qsa-list {
+      margin-top: 1rem;
+      padding-left: 1rem;
+    }
+    .qsa-item {
+      margin-bottom: 0.7rem;
+      padding: 0.5rem;
+      border-left: 3px solid #4facfe;
+      background: #eaf6fd;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Consulta CNPJ</h1>
+  <input type="text" id="cnpjInput" placeholder="Digite o CNPJ">
+  <button onclick="consultarCNPJ()">Consultar</button>
+  <div id="output" class="result" style="display:none;"></div>
+  <div id="error" class="error"></div>
+</div>
+
+<script>
+  function limparCNPJ(cnpj) {
+    return cnpj.replace(/[^\d]+/g,'');
+  }
+
+  async function consultarCNPJ() {
+    const input = document.getElementById('cnpjInput');
+    const output = document.getElementById('output');
+    const error = document.getElementById('error');
+    let cnpj = limparCNPJ(input.value);
+
+    output.style.display = 'none';
+    error.textContent = '';
+
+    if(cnpj.length !== 14) {
+      error.textContent = "CNPJ inválido. Deve conter 14 números.";
+      return;
+    }
+
+    try {
+      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+      if (!response.ok) {
+        throw new Error('CNPJ não encontrado.');
+      }
+      const data = await response.json();
+
+      // Gera a lista de sócios/administradores (aquisições)
+      let qsaHTML = '';
+      if (data.qsa && data.qsa.length > 0) {
+        qsaHTML = `<strong>Sócios/Administradores:</strong>
+        <div class="qsa-list">`;
+        data.qsa.forEach((socio, idx) => {
+          qsaHTML += `
+            <div class="qsa-item">
+              <strong>Nome:</strong> ${socio.nome_socio || 'N/A'}<br>
+              <strong>Qualificação:</strong> ${socio.qualificacao_socio || 'N/A'}
+            </div>
+          `;
+        });
+        qsaHTML += `</div>`;
+      } else {
+        qsaHTML = `<strong>Sócios/Administradores:</strong> Não informado.`;
+      }
+
+      output.style.display = 'block';
+      output.innerHTML = `
+        <strong>Nome Fantasia:</strong> ${data.fantasia || 'N/A'}<br>
+        <strong>Razão Social:</strong> ${data.razao_social || 'N/A'}<br>
+        <strong>Status:</strong> ${data.descricao_situacao_cadastral || 'N/A'}<br>
+        <strong>UF:</strong> ${data.uf || 'N/A'}<br>
+        <strong>Cidade:</strong> ${data.municipio || 'N/A'}<br>
+        <strong>Bairro:</strong> ${data.bairro || 'N/A'}<br>
+        <strong>Logradouro:</strong> ${data.logradouro || 'N/A'}, ${data.numero || 'S/N'}<br>
+        <strong>CEP:</strong> ${data.cep || 'N/A'}
+        <br>
+        ${qsaHTML}
+      `;
+    } catch (err) {
+      error.textContent = err.message;
+    }
+  }
+</script>
+
+</body>
+</html>
