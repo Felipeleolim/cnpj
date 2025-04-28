@@ -14,6 +14,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
+      color: #333;
     }
     .container {
       background: #fff;
@@ -21,17 +22,16 @@
       border-radius: 10px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.1);
       width: 90%;
-      max-width: 700px;
+      max-width: 800px;
     }
     h1 {
       text-align: center;
-      color: #333;
+      margin-bottom: 1rem;
     }
     input[type="text"] {
       width: 100%;
       padding: 0.8rem;
-      margin-top: 1rem;
-      margin-bottom: 1rem;
+      margin: 1rem 0;
       border: 1px solid #ccc;
       border-radius: 5px;
       font-size: 1rem;
@@ -56,7 +56,6 @@
       padding: 1rem;
       border-radius: 5px;
       font-size: 0.95rem;
-      color: #333;
     }
     .error {
       margin-top: 1rem;
@@ -68,25 +67,20 @@
       border-bottom: 1px solid #ccc;
       padding-bottom: 0.5rem;
     }
-    .field-group:last-child {
-      border-bottom: none;
-    }
     .field-title {
       font-weight: bold;
       color: #007acc;
       margin-bottom: 5px;
     }
     .list-item {
-      margin-left: 1rem;
-      margin-bottom: 0.5rem;
-      padding: 0.5rem;
+      margin: 0.5rem 0;
+      padding: 0.7rem;
       background: #eaf6fd;
       border-radius: 5px;
       border-left: 3px solid #4facfe;
     }
     .collapsible {
       background-color: #e7f3ff;
-      color: #333;
       cursor: pointer;
       padding: 10px;
       width: 100%;
@@ -94,14 +88,17 @@
       text-align: left;
       outline: none;
       font-size: 1rem;
-      margin-top: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       border-radius: 5px;
+      margin-top: 20px;
     }
     .collapsible:hover {
       background-color: #d0e9ff;
     }
     .content {
-      padding: 0 15px;
+      padding: 10px 15px;
       display: none;
       overflow: hidden;
       background-color: #f9f9f9;
@@ -115,20 +112,21 @@
       font-size: 0.85rem;
       color: white;
     }
-    .ativo {
-      background-color: green;
-    }
-    .inativo {
-      background-color: red;
-    }
+    .ativo { background-color: green; }
+    .inativo { background-color: red; }
     .tab-title {
       font-size: 1.2rem;
       color: #333;
-      margin-top: 2rem;
       text-align: center;
       border-bottom: 2px solid #4facfe;
       padding-bottom: 5px;
-      margin-bottom: 1rem;
+      margin: 2rem 0 1rem;
+    }
+    .arrow {
+      transition: transform 0.3s;
+    }
+    .active .arrow {
+      transform: rotate(90deg);
     }
   </style>
 </head>
@@ -148,11 +146,16 @@
   }
 
   function formatarTexto(texto) {
-    if (!texto) return '';
+    if (!texto) return 'Não Informado';
     return texto
       .replace(/_/g, ' ')
       .toLowerCase()
       .replace(/(?:^|\s)\S/g, a => a.toUpperCase());
+  }
+
+  function tratarValor(valor) {
+    if (valor === null || valor === undefined || valor === '') return 'Não Informado';
+    return valor;
   }
 
   function criarBadge(status) {
@@ -189,15 +192,14 @@
 
       let html = '<h3>Informações da Empresa</h3><div>';
 
-      // Primeiro, todos os campos exceto QSA (Sócios)
       for (let key in data) {
-        if (key === 'qsa') continue; // pula agora, vamos montar depois
+        if (key === 'qsa') continue;
 
         if (typeof data[key] === 'object' && data[key] !== null && !Array.isArray(data[key])) {
           html += `<div class="field-group">
             <div class="field-title">${formatarTexto(key)}</div>`;
           for (let subKey in data[key]) {
-            html += `<strong>${formatarTexto(subKey)}:</strong> ${data[key][subKey]}<br>`;
+            html += `<strong>${formatarTexto(subKey)}:</strong> ${tratarValor(data[key][subKey])}<br>`;
           }
           html += `</div>`;
         } else {
@@ -205,9 +207,9 @@
             <div class="field-title">${formatarTexto(key)}</div>`;
 
           if (key === 'descricao_situacao_cadastral') {
-            html += criarBadge(data[key]);
+            html += criarBadge(tratarValor(data[key]));
           } else {
-            html += `${data[key]}`;
+            html += tratarValor(data[key]);
           }
 
           html += `</div>`;
@@ -216,29 +218,38 @@
 
       html += '</div>';
 
-      // Agora monta a aba sócios
+      // Sócios
       if (data.qsa && data.qsa.length > 0) {
+        const sociosOrdenados = [...data.qsa].sort((a, b) => {
+          if (a.qualificacao_socio && b.qualificacao_socio) {
+            return a.qualificacao_socio.localeCompare(b.qualificacao_socio);
+          }
+          return 0;
+        });
+
         html += `<div class="tab-title">Sócios / Administradores</div>
-          <button type="button" class="collapsible">Ver Sócios</button>
+          <button type="button" class="collapsible">Ver Sócios <span class="arrow">▶</span></button>
           <div class="content">`;
-        data.qsa.forEach((socio, idx) => {
+
+        sociosOrdenados.forEach((socio) => {
           html += `<div class="list-item">`;
           for (let campo in socio) {
-            html += `<strong>${formatarTexto(campo)}:</strong> ${socio[campo]}<br>`;
+            html += `<strong>${formatarTexto(campo)}:</strong> ${tratarValor(socio[campo])}<br>`;
           }
           html += `</div>`;
         });
+
         html += `</div>`;
       }
 
       output.innerHTML = html;
 
-      // Ativa collapsible
-      var coll = document.getElementsByClassName("collapsible");
+      // Botão collapsible
+      const coll = document.getElementsByClassName("collapsible");
       for (let i = 0; i < coll.length; i++) {
         coll[i].addEventListener("click", function() {
           this.classList.toggle("active");
-          var content = this.nextElementSibling;
+          const content = this.nextElementSibling;
           if (content.style.display === "block") {
             content.style.display = "none";
           } else {
